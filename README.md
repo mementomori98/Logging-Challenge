@@ -69,7 +69,7 @@ It uses a fake in-memory service to simulate weather data.
    - Log at `Critical` for unhandled exceptions.
 
 4. **Add correlation IDs**
-   - Generate one per request (middleware).
+   - Generate one per request.
    - Pass through all logs for traceability.
 
 ---
