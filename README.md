@@ -27,6 +27,9 @@ It uses a fake in-memory service to simulate weather data.
   - Message
   - Correlation/request ID
   - Contextual data (e.g., city name for requests)
+  - Assembly Version
+  - Environment
+  - Api name
 
 ### 2. Log Levels
 - `Information`: For successful requests and system events.
