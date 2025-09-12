@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 var builder = WebApplication.CreateBuilder(args);
 
 // TODO naming?
-builder.UseConfiguredSerilog();
+builder.ConfigureLogging();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSingleton<IWeatherService, FakeWeatherService>();
@@ -26,7 +26,7 @@ app.UseLoggingContextEnrichment();
 app.UseRequestLogging();
 app.UseExceptionHandler();
 
-app.MapGet("/weather/current", async (string city, IWeatherService weatherService, [FromServices] ILogger<Program> logger) =>
+app.MapGet("/weather/current", async (string city, IWeatherService weatherService, [FromServices] ILogger<Program> logger, [FromServices] IHttpContextAccessor contextAccessor) =>
 {
     if (Random.Shared.Next(10) < 3)
         throw new Exception("Unhandled Exception");

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using Microsoft.AspNetCore.Builder;
@@ -63,9 +64,9 @@ public static class AppExtensions
                 string.Join(",", context.Request.Query.Select(item => $"{item.Key}={item.Value}")));
 
             // TODO use dateProvider
-            var startTime = DateTimeOffset.UtcNow;
+            var sw = Stopwatch.StartNew();
             await next(context);
-            var executionTime = DateTimeOffset.UtcNow - startTime;
+            var executionTime = sw.Elapsed;
 
             app.Logger.LogInformation("Completed request {CorrelationId} with status code {StatusCode} in {ExecutionTime}ms",
                 correlationId,
@@ -89,6 +90,8 @@ public static class AppExtensions
             catch (Exception e)
             {
                 app.Logger.LogCritical(e, "Unhandled error: {Message}", e.Message);
+                if (httpContext.Response.HasStarted)
+                    return;
                 httpContext.Items.TryGetValue(CorrelationId, out var correlationId);
                 httpContext.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
                 await httpContext.Response.WriteAsJsonAsync(new
@@ -100,23 +103,24 @@ public static class AppExtensions
         });
     }
 
-    public static void UseConfiguredSerilog(this WebApplicationBuilder builder)
+    public static void ConfigureLogging(this WebApplicationBuilder builder)
     {
         builder.Host.UseSerilog((context, config) => config
-            .ReadFrom.Configuration(new ConfigurationBuilder()
-                .AddUserSecrets<Program>(optional: true)
-                .Build())
-            .WriteTo.Console(
-                formatter: new ExpressionTemplate("[{UtcDateTime(@t):o} {@l:u3} {SourceContext}] {@m:lj}\n{@x}"))
-            .WriteTo.File(
-                formatter: new ExpressionTemplate("[{UtcDateTime(@t):o} {@l:u3} {SourceContext}] {@m:lj}\n{@p}\n{@x}"),
-                path: "logs/logs.txt",
-                rollingInterval: RollingInterval.Day)
-            .WriteTo.File(
-                formatter: new CompactJsonFormatter(),
-                path: "logs/logs.json",
-                rollingInterval: RollingInterval.Day)
-            .Enrich.FromLogContext());
+            // .ReadFrom.Configuration(new ConfigurationBuilder()
+            //     .AddUserSecrets<Program>(optional: true)
+            //     .Build())
+            .ReadFrom.Configuration(builder.Configuration)
+            .WriteTo.Async(c => c
+                .Console(formatter: new ExpressionTemplate("[{UtcDateTime(@t):o} {@l:u3} {SourceContext}] {@m:lj}\n{@x}"))
+                .WriteTo.File(
+                    formatter: new ExpressionTemplate("[{UtcDateTime(@t):o} {@l:u3} {SourceContext}] {@m:lj}\n{@p}\n{@x}"),
+                    path: "logs/logs.txt",
+                    rollingInterval: RollingInterval.Day)
+                .WriteTo.File(
+                    formatter: new CompactJsonFormatter(),
+                    path: "logs/logs.json",
+                    rollingInterval: RollingInterval.Day)
+                .Enrich.FromLogContext()));
     }
 
     private class DisposableCollection : IDisposable
